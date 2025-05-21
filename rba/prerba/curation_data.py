@@ -1,6 +1,7 @@
 """Module defining CurationData class."""
 
 # python 2/3 compatibility
+
 from __future__ import division, print_function, absolute_import
 
 import pandas
@@ -99,7 +100,8 @@ class CurationData(object):
 
         """
         new_rows = pandas.DataFrame(rows, columns=self.data.columns)
-        self.data = pandas.concat([self.data, new_rows], axis=0,ignore_index=True)  
+        #self.data = self.data.append(new_rows)   ORIGINAL CODE
+        self.data = pandas.concat([self.data, pandas.DataFrame(new_rows)], ignore_index=True)
         self._data_added = True
 
     def add_row(self, row):

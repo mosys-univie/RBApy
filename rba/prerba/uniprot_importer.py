@@ -5,57 +5,66 @@ from __future__ import division, print_function, absolute_import
 
 # global imports
 import os.path
-import sys
-import requests
+try:
+    from urllib.request import urlopen
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib2 import urlopen
+    from urllib import urlencode
+import shutil
 
 
 def create_uniprot_if_absent(input_file, organism_id):
     if not os.path.isfile(input_file):
-        print('Could not find UniProt file. Downloading most recent'
-              ' version ...', end='')
-        sys.stdout.flush()
+        print('Could not find uniprot file. Downloading most recent'
+              ' version...')
         raw_data = UniprotImporter(organism_id).data
         if len(raw_data) == 0:
             raise UserWarning('Invalid organism, could not retrieve '
-                              'UniProt data.')
+                              'Uniprot data.')
         with open(input_file, 'wb') as f:
             f.write(raw_data)
-        print(' done')
 
 
 class UniprotImporter(object):
     """
-    Class retrieving UniProt data for specified organism.
+    Class retrieving uniprot data for specified organism.
 
     Attributes
     ----------
     data : ?
-        Data downloaded from UniProt.
+        Data downloaded from uniprot.
 
     """
 
     def __init__(self, organism_id):
         """
-        Build object from UniProt organism identifier.
+        Build object from uniprot organism identifier.
 
         Parameters
         ----------
         organism_id : str
             Information used to retrieve organism. It can be
-            a UniProt identifier, a species name, etc.
+            a uniprot identifier, a species name, etc.
 
         """
-        #fields_to_look_up=['accession','id','gene_names','annotation_score','protein_name','organism_name','organism_id','reviewed','length','mass','sequence','ec',
-        #'cc_catalytic_activity','cc_cofactor','cc_subunit','cc_subcellular_location','cc_tissue_specificity','cc_pathway','cc_function',
-        #'temp_dependence','feature_count','ph_dependence','cc_caution','cc_interaction','cc_ptm','ft_signal','ft_transit','ft_propep','ft_lipid','ft_carbohyd','ft_disulfid','ft_intramem','ft_transmem','redox_potential']
-        #fields unable to be retreived: 'ft_metal' and 'ft_np_bind'
-
-        payload = {'query':'organism_id:{}'.format(organism_id),
-                   'format':'tsv',
-                   'fields':url_columns()}
+        # code adapted from
+        # http://www.uniprot.org/help/programmatic_access   
         url = 'https://rest.uniprot.org/uniprotkb/stream'
-        response = requests.get(url, params=payload)
-        self.data = response.content
+        #url = 'http://www.uniprot.org/uniprot/'     ------ this was the original code, the line above this one resolved the problem with HTTP
+        params = {
+
+            'format': 'tsv',
+            'query': 'organism_id:' + organism_id,
+            
+            #'format': 'tab',
+            #'query': 'organism:' + organism_id,
+            
+            'columns': url_columns()
+        }
+        url_data = urlencode(params)
+        response = urlopen(url + '?' + url_data)
+        self.data = response.read()
 
 def url_columns():
     """Build the url part that specifies which columns we want."""
@@ -65,15 +74,13 @@ def url_columns():
     ######################
     # Names and taxonomy #
     ######################
-    # **Entry**, **Entry Name**,
-    # **Gene Names**, **Protein names**, **Organism**, **Organism (ID)**
-    cols= ['accession','id','gene_names','protein_name','organism_name','organism_id']
-
-    ######################
-    # Annotation quality #
-    ######################
-    # **Reviewed**, **Annotation**
-    cols += ['reviewed', 'annotation_score']
+    # **Entry**, **Entry name**,
+    # **Gene names**, **Protein names**, **Organism**, **Organism ID**
+    
+    #cols = ['id', 'entry name', 'genes', 'protein names', 'organism',
+           # 'organism-id']          ------ this was the original code, the line below was an unsuccessful try to resolve the problem with ' Gene Names 
+    cols = ['accession', 'id', 'gene_names', 'protein_name', 'organism_name',
+            'organism_id']
 
     #############
     # Sequences #
@@ -84,49 +91,53 @@ def url_columns():
     ############
     # Function #
     ############
-    # **Catalytic activity** , **Pathway** ,
-    # **Function [CC]** , **EC number** ,
-    # **Cofactor** , **Temperature dependence** ,
-    # **pH dependence** , **Redox potential**
-    cols += ['cc_catalytic_activity','cc_pathway','cc_function','ec','cc_cofactor','temp_dependence','ph_dependence','redox_potential']
+    # **EC number**, **Catalytic activity**, **Cofactor**,
+    # **Enzyme regulation**, **Function [CC]**, **Pathway**
+    # **Temperature dependence**, **pH dependence**
     # **Metal binding**, **Nucleotide binding**
-    # fields unable to be retreived: 'ft_metal' and 'ft_np_bind'
+    comments = ['catalytic activity', 'cofactor', 'enzyme regulation',
+                'function', 'pathway', 'temperature dependence',
+                'ph dependence']
+    
+    features = ['metal binding', 'np binding']
+    cols += (['ec'] + reformat('comment', comments)
+             + reformat('feature', features))
+
+    #################
+    # Miscellaneous #
+    #################
+    # **Features**, **Caution**, **Keywords**
+    
+    cols += ['features'] + reformat('comment', ['caution'] + ['keywords'])
+    
 
     ###############
     # Interaction #
     ###############
-    # **Subunit structure** , **Interacts with**
-    cols += ['cc_subunit','cc_interaction']
-
-    ########################
-    # Subcellular location #
-    ########################
-    # **Subcellular location [CC]** , **Intramembrane** , **Transmembrane**
-    cols += ['cc_subcellular_location','ft_intramem','ft_transmem']
+    # **Subunit structure [CC]**
+    cols += reformat('comment', ['subunit'])
 
     ##############
     # Expression #
     ##############
     # **Tissue specificity**
-    cols += ['cc_tissue_specificity']
+    cols += reformat('comment', ['tissue specificity'])
 
-    ##############
-    # Protein processing #
-    ##############
-    # **Post-translational modification** , **Lipidation**
-    # **Glycosylation** , **Disulfide bond**
-    cols += ['cc_ptm','ft_lipid','ft_carbohyd','ft_disulfid']
+    ########################
+    # Subcellular location #
+    ########################
+    # **Subcellular location [CC]**
+    cols += reformat('comment', ['subcellular location'])
 
-    ##############
-    # Specific peptides #
-    ##############
-    # **Signal peptide** , **Transit peptide** , **Propeptide**
-    cols += ['ft_signal','ft_transit','ft_propep']
+    return ','.join(cols)
 
-    #################
-    # Miscellaneous #
-    #################
-    #  **Caution**,**Features**, **Keywords**
-    cols += ['cc_caution','feature_count','keyword']
 
-    return cols
+def reformat(keyword, fields):
+    """
+    Reformat field name to url format using specific keyword.
+
+    Example:
+        reformat('comment', ['a','b']) returns
+        ['comment(A)', 'comment(B)']
+    """
+    return ['{}({})'.format(keyword, f.upper()) for f in fields]

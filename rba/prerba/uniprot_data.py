@@ -14,12 +14,12 @@ Cofactor = namedtuple('Cofactor', 'chebi name stoichiometry uniprot_note')
 
 class UniprotData(object):
     """
-    Class parsing RBA-relevant UniProt data.
+    Class parsing RBA-relevant Uniprot data.
 
     Parameters
     ----------
     data: pandas.DataFrame
-        raw UniProt data
+        raw uniprot data
 
     """
 
@@ -29,40 +29,24 @@ class UniprotData(object):
 
         Parameters
         ----------
-        input_file: path to UniProt file.
+        input_file: path to uniprot file.
 
         """
-        # open UniProt data
+        # open uniprot data
         self.data = pandas.read_csv(os.path.join(input_dir, 'uniprot.csv'),
                                     sep='\t')
         self.data.set_index('Entry', inplace=True)
-        # create mapping from gene ids to UniProt ids
+        # create mapping from gene ids to uniprot ids
         self._gene_to_entry = {}
-        self._gene_annotation_score = {}
         gene_reader = re.compile(r'([^\s]+)')
-        annotation_reader = re.compile(r'[0-5]')
-
-        # according to uniprot rest api documentation gene-name column should be identified as 'Gene names',
-        # however is denoted 'Gene Names'.
-        for entry, genes, annotation in zip(self.data.index, self.data['Gene Names'], self.data['Annotation']): #new
-            # transform raw UniProt field into standardized list
+        #for entry, genes in zip(self.data.index, self.data['Gene names']):  This was the original code
+        for entry, genes in zip(self.data.index, self.data['Gene Names']):
+            # transform raw uniprot field into standardized list
             if pandas.isnull(genes):
                 continue
             gene_ids = set(g.upper() for g in gene_reader.findall(genes))
-
-            annotation_score = annotation_reader.findall(str(annotation)) #new
             for gene in gene_ids:
-                # test if the gene is already present in the list _gene_to_entry.keys()
-                if gene in self._gene_to_entry.keys():
-                    # gene present. Test of the annotation score.
-                    if int(annotation_score[0]) > self._gene_annotation_score[gene]:
-                        # better annotation, keep the entry
-                        self._gene_to_entry[gene] = entry
-                        self._gene_annotation_score[gene] = int(annotation_score[0])
-                else:
-                    # gene absent: insertion
-                    self._gene_to_entry[gene] = entry
-                    self._gene_annotation_score[gene] = int(annotation_score[0])
+                self._gene_to_entry[gene] = entry
         # create parsers
         self._location_parser = LocationParser()
         self._cofactor_parser = CofactorParser()
@@ -70,12 +54,12 @@ class UniprotData(object):
 
     def line(self, uniprot_id):
         """
-        Return data line corresponding to UniProt identifier.
+        Return data line corresponding to uniprot identifier.
 
         Parameters
         ----------
         uniprot_id : str
-            UniProt identifier of a protein.
+            Uniprot identifier of a protein.
 
         Returns
         -------
@@ -136,11 +120,13 @@ class UniprotData(object):
             Standardized stoichiometry of protein.
 
         """
-        return self._subunit_parser.parse(uniprot_line['Subunit structure'])
+        return self._subunit_parser.parse(
+            uniprot_line['Subunit structure [CC]']
+            )
 
     def entry(self, gene):
         """
-        Find UniProt entries from gene identifiers.
+        Find uniprot entries from gene identifiers.
 
         Parameters
         ----------
@@ -151,7 +137,7 @@ class UniprotData(object):
         -------
         result : dict
             Dictionary where keys are gene ids and values are
-            corresponding UniProt entries.
+            corresponding uniprot entries.
         not_found : list
             Gene ids that could not be retrieved.
 
@@ -179,18 +165,18 @@ class UniprotData(object):
 
 
 class LocationParser(object):
-    """Class parsing 'Subcellular location' field of UniProt."""
+    """Class parsing 'Subcellular location' field of uniprot."""
 
-    #_location_reader = re.compile(r'SUBCELLULAR LOCATION:\s([\w\s]+\w)')
-    _location_reader = re.compile(r'\s+([\w\s]+\w)')
+    _location_reader = re.compile(r'SUBCELLULAR LOCATION:\s([\w\s]+\w)')
+
     def parse(self, field):
         """
-        Parse 'Subcellular location' field in UniProt.
+        Parse 'Subcellular location' field in uniprot.
 
         Parameters
         ----------
         field : str
-            Subcellular location field from UniProt.
+            Subcellular location field from uniprot.
 
         Returns
         -------
@@ -198,23 +184,10 @@ class LocationParser(object):
             Compartment read.
 
         """
-
-        # Remove all fields such as {ECO:XX|Pubmed:ggg}
-        # location_remove_ECO = re.compile(r'\{(\w|:|\||-|,|\s)+\}(.|;|\s)');
-        # Remove all fields such as [Isoform 1]
-        location_remove_ISO = re.compile(r'\[.*\]:');
-
-
         if pandas.isnull(field):
             return None
         try:
-            # split subcellular localisation
-            # take the second elements, 1st is ''
-            fieldSplit = re.split('SUBCELLULAR LOCATION:',field)
-            # now remove [XXXX]:
-            fieldWithoutIso = location_remove_ISO.sub("",fieldSplit[1])
-            return self._location_reader.match(fieldWithoutIso).group(1)
-            #return self._location_reader.match(field).group(1)
+            return self._location_reader.match(field).group(1)
         except AttributeError:
             print(field)
             raise
@@ -222,14 +195,14 @@ class LocationParser(object):
 
 class SubunitParser(object):
     """
-    Class parsing 'Subunit' UniProt field.
+    Class parsing 'Subunit' uniprot field.
 
     Attributes
     ----------
     prefix_rule : dict
         Dictionary determining rule used to infer stoichiometry.
         Keys are all caps prefixes preceding 'mer' in words found
-        in UniProt field,
+        in uniprot field,
         values are stoichiometries associated with them. For example,
         prefix_rule[MONO] = 1.
 
@@ -242,7 +215,7 @@ class SubunitParser(object):
 
     def parse(self, field):
         """
-        Parse UniProt field.
+        Parse uniprot field.
 
         Parameters
         ----------
@@ -270,7 +243,7 @@ class SubunitParser(object):
 
 
 class CofactorParser(object):
-    """Class parsing Cofactor UniProt field."""
+    """Class parsing Cofactor uniprot field."""
 
     _name_reader = re.compile(r'Name=([^;]+); Xref=ChEBI:([^;]+);')
     _note_reader = re.compile(r'Note=(.*)')
@@ -278,12 +251,12 @@ class CofactorParser(object):
 
     def parse(self, field):
         """
-        Parse UniProt field.
+        Parse uniprot field.
 
         Parameters
         ----------
         field : str
-            UniProt field containing cofactor information.
+            Uniprot field containing cofactor information.
 
         Returns
         -------
