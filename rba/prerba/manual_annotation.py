@@ -126,6 +126,7 @@ class CuratedLocationMap(CuratedData):
         self.data = {r[0]: r[1] for r in self._raw_data.rows()}
         # add mandatory compartments (if they are missing)
         self.data.setdefault('Secreted', 'Secreted')
+        self.data.setdefault('Cytoplasm', 'Cytoplasm')
         self._warning = (
             'WARNING: UniProt locations with no user-defined '
             'counterpart have been added to {}.'
