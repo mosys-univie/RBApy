@@ -7,7 +7,7 @@ from __future__ import division, print_function, absolute_import
 import numpy
 
 # local imports
-# from rba.core.functions
+from rba.core import functions
 
 
 class ParameterVector(object):

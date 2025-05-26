@@ -5,7 +5,6 @@ from __future__ import division, print_function, absolute_import
 
 # global imports
 import os.path
-import sys
 
 # local imports
 from rba.prerba.pipeline_parameters import PipelineParameters
@@ -15,7 +14,8 @@ from rba.prerba.protein_data import ProteinData
 from rba.prerba.uniprot_importer import create_uniprot_if_absent
 from rba.prerba.manual_annotation import (
     CuratedMetabolites, CuratedMacrocomponents
-)
+    )
+from rba.prerba.enzyme import Enzyme
 from rba.prerba.user_machinery import UserMachinery
 from rba.prerba.fasta_parser import RbaFastaParser
 from rba.prerba import protein_export
@@ -23,10 +23,8 @@ from rba.prerba import protein_export
 
 class UserData(object):
     """Data contained in files provided by the user."""
-
-    def __init__(self, parameter_file, verbose=False):
+    def __init__(self, parameter_file):
         """Read data stored in filed described in parameters."""
-        self.verbose = verbose
         self._parameters = PipelineParameters(parameter_file).parameters
         self.default = DefaultData()
         self._import_sbml_data()
@@ -34,16 +32,11 @@ class UserData(object):
         self._import_manual_annotation()
 
     def _import_sbml_data(self):
-        if self.verbose:
-            print('  Importing SBML data ...', end='')
-            sys.stdout.flush()
+        print('Importing SBML data...')
         self.sbml_data = sbml_data.SbmlData(
             self.input_path(self._parameters['SBML_FILE']),
-            external_ids=self._external_ids(),
-            interface_id=self._interface_ids()
-        )
-        if self.verbose:
-            print(' done')
+            external_ids=self._external_ids()
+            )
 
     def input_path(self, filename):
         return os.path.join(self._input_dir(), filename)
@@ -57,23 +50,13 @@ class UserData(object):
             return []
         return [e.strip() for e in line.split(',')]
 
-    def _interface_ids(self):
-        line = self._parameters.get('INTERFACE_COMPARTMENTS', None)
-        if line is None:
-            return []
-        return set(line.split(','))
-
     def _import_uniprot_data(self):
-        if self.verbose:
-            print('  Importing UniProt data ...', end='')
-            sys.stdout.flush()
+        print('Importing Uniprot data...')
         create_uniprot_if_absent(self.input_path('uniprot.csv'),
                                  self._organism_id())
         self.protein_data = ProteinData(self._input_dir())
         self._retrieve_enzymatic_proteins()
         self.protein_data.update_helper_files()
-        if self.verbose:
-            print(' done')
 
     def _organism_id(self):
         return self._parameters['ORGANISM_ID']
@@ -92,21 +75,17 @@ class UserData(object):
         return list(set(result))
 
     def _import_manual_annotation(self):
-        if self.verbose:
-            print('  Importing manual annotation ...', end='')
-            sys.stdout.flush()
+        print('Importing manual annotation...')
         known_species = self._sbml_species_ids()
         self.macrocomponents = CuratedMacrocomponents(
             self._input_dir(), known_species
-        ).data
+            ).data
         self.metabolite_map = self._build_metabolite_map()
         self.trnas = self._read_trnas(self.input_path('trnas.fasta'))
         self.ribosome = UserMachinery(self.input_path('ribosome.fasta'),
                                       self.protein_data)
         self.chaperone = UserMachinery(self.input_path('chaperones.fasta'),
                                        self.protein_data)
-        if self.verbose:
-            print(' done')
 
     def _sbml_species_ids(self):
         return set([s.id for s in self.sbml_data.species])
@@ -183,7 +162,7 @@ class UserData(object):
     def export_proteins(self, filename):
         protein_export.export_proteins(
             self.input_path(filename), self.enzymatic_proteins
-        )
+            )
 
     def sbml_species(self):
         return self.sbml_data.species

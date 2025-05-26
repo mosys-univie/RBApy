@@ -78,15 +78,15 @@ def url_columns():
     # **Gene names**, **Protein names**, **Organism**, **Organism ID**
     
     #cols = ['id', 'entry name', 'genes', 'protein names', 'organism',
-           # 'organism-id']          ------ this was the original code, the line below was an unsuccessful try to resolve the problem with ' Gene Names 
-    cols = ['accession', 'id', 'gene_names', 'protein_name', 'organism_name',
-            'organism_id']
+            #'organism-id']     ------ this was the original code, the line below was an unsuccessful try to resolve the problem with ' Gene Names 
+    cols = ['Entry','Entry Name', 'Gene Names', 'Protein names' 'Organism',
+            'Organism ID']
 
     #############
     # Sequences #
     #############
     # **Length**, **Mass**, **Sequence**
-    cols += ['length', 'mass', 'sequence']
+    cols += ['Length', 'Mass', 'Sequence']
 
     ############
     # Function #
@@ -95,9 +95,9 @@ def url_columns():
     # **Enzyme regulation**, **Function [CC]**, **Pathway**
     # **Temperature dependence**, **pH dependence**
     # **Metal binding**, **Nucleotide binding**
-    comments = ['catalytic activity', 'cofactor', 'enzyme regulation',
-                'function', 'pathway', 'temperature dependence',
-                'ph dependence']
+    comments = ['EC number','Catalytic activity', 'Cofactor',
+                'Function [CC]', 'Pathway', 'Temperature dependence',
+                'pH dependence']
     
     features = ['metal binding', 'np binding']
     cols += (['ec'] + reformat('comment', comments)
@@ -108,26 +108,26 @@ def url_columns():
     #################
     # **Features**, **Caution**, **Keywords**
     
-    cols += ['features'] + reformat('comment', ['caution'] + ['keywords'])
+    cols += ['Features'] + reformat('comment', ['Caution'] + ['Keywords'])
     
 
     ###############
     # Interaction #
     ###############
     # **Subunit structure [CC]**
-    cols += reformat('comment', ['subunit'])
+    cols += reformat('comment', ['Subunit structure'])
 
     ##############
     # Expression #
     ##############
     # **Tissue specificity**
-    cols += reformat('comment', ['tissue specificity'])
+    cols += reformat('comment', ['Tissue specificity'])
 
     ########################
     # Subcellular location #
     ########################
     # **Subcellular location [CC]**
-    cols += reformat('comment', ['subcellular location'])
+    cols += reformat('comment', ['Subcellular location [CC]'])
 
     return ','.join(cols)
 

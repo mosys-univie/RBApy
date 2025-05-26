@@ -1,13 +1,14 @@
-"""Find protein information from UniProt and manual data."""
+"""Find protein information from uniprot and manual data."""
 
 # python 2/3 compatibility
 from __future__ import division, print_function, absolute_import
 
+from collections import namedtuple
 from itertools import chain
 import pandas
 
 from rba.prerba.macromolecule import Protein
-from rba.prerba.uniprot_data import UniprotData
+from rba.prerba.uniprot_data import Cofactor, UniprotData
 from rba.prerba.manual_annotation import (
     CuratedCofactors, CuratedSubunits, CuratedLocations,
     CuratedLocationMap, CuratedUnknownProteins
@@ -25,17 +26,17 @@ class ProteinData(object):
     default_location : str
         Default protein location.
     location_map : dict
-        Map from UniProt locations to user locations.
+        Map from uniprot locations to user locations.
 
     """
     def __init__(self, input_dir):
         """
-        Build object from UniProt and manual data.
+        Build object from uniprot and manual data.
 
         Parameters
         ----------
         uniprot_data : rba.prerba.uniprot_data.UniprotData
-            UniProt data.
+            Uniprot data.
         manual_data : rba.prerba.manual_annotation.ManualAnnotation
             Curated data.
 

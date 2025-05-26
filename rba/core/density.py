@@ -23,7 +23,7 @@ class Density(object):
         signs of constraints ('E' for equality, 'L' for
         inequality - Lower than)
     values : rba.core.parameter_vector.ParameterVector
-        Right-hand side of constraints (depending on μ).
+        Right-hand side of constraints (depending on mu).
 
     """
 

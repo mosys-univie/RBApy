@@ -6,6 +6,7 @@ from __future__ import division, print_function, absolute_import
 # global imports
 import numpy
 from scipy.sparse import coo_matrix, diags, hstack, vstack
+import cplex
 
 # local imports
 from rba.core.constraint_blocks import ConstraintBlocks
@@ -53,16 +54,16 @@ class ConstraintMatrix(object):
         nb_processes = len(processes)
         nb_undetermined = len(undetermined_fluxes)
         nb_compartments = len(compartments)
+        
         # column information
         self.col_names = (reactions
                           + [e for e in enzymes]
                           + [p + '_machinery' for p in processes]
                           + [m + '_target_flux' for m in undetermined_fluxes])
         self.reaction_cols = numpy.arange(nb_reactions)
-        self.enzyme_cols = nb_reactions + numpy.arange(nb_enzymes)
-        self.process_cols = (nb_reactions + nb_enzymes +
-                             numpy.arange(nb_processes))
-        self.target_cols = (nb_reactions + nb_enzymes + nb_processes +
+        self.enzyme_cols = self.reaction_cols[-1] + 1 + numpy.arange(nb_enzymes)
+        self.process_cols = self.enzyme_cols[-1] + 1 + numpy.arange(nb_processes)
+        self.target_cols = (self.process_cols[-1] + 1 +
                             numpy.arange(nb_undetermined))
         # row information
         self.row_names = (self._blocks.metabolism.internal

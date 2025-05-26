@@ -119,7 +119,7 @@ class DefaultParameters(object):
         Return xml structure containing average protein length.
         """
         return Function('inverse_average_protein_length', 'constant',
-                        {'CONSTANT': 1.0/length})
+                        {'CONSTANT': 1.0/length if length else 0.0})   #ADDED IF LENGTH ELSE 0.0 PART 
 
     @staticmethod
     def protein_fraction_id(compartment_id):

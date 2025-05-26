@@ -5,9 +5,10 @@ from __future__ import division, print_function, absolute_import
 
 # global imports
 import numpy
+import itertools
 
 # local imports
-from rba.core.functions import default_ub
+from rba.core.functions import build_function, zero_function, default_ub
 
 
 class Enzymes(object):

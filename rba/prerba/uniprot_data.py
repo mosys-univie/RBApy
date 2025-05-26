@@ -33,8 +33,11 @@ class UniprotData(object):
 
         """
         # open uniprot data
-        self.data = pandas.read_csv(os.path.join(input_dir, 'uniprot.csv'),
-                                    sep='\t')
+        self.data = pandas.read_excel(os.path.join(input_dir, 'uniprot.xlsx'))
+
+        
+        
+       
         self.data.set_index('Entry', inplace=True)
         # create mapping from gene ids to uniprot ids
         self._gene_to_entry = {}
@@ -155,6 +158,10 @@ class UniprotData(object):
             values their average number in a protein.
 
         """
+        if 'Sequence' not in self.data.columns:   #ADDED THIS
+            
+            print("WARNING: No 'Sequence' column found in uniprot data. Skipping average composition.") #ADDED THIS
+            return {} #ADDED THIS
         composition = Counter()
         for sequence in self.data['Sequence']:
             composition.update(sequence)

@@ -4,8 +4,8 @@
 from __future__ import division, print_function, absolute_import
 
 # global imports
+import copy
 import itertools
-import re
 import libsbml
 
 # local imports
@@ -30,7 +30,7 @@ class SbmlData(object):
 
     """
 
-    def __init__(self, input_file, cytosol_id='c', external_ids=None, interface_id=None):
+    def __init__(self, input_file, cytosol_id='c', external_ids=None):
         """
         Build from file.
 
@@ -52,7 +52,7 @@ class SbmlData(object):
         self.external_prefixes = [self._prefix(m.id)
                                   for m in self.species
                                   if m.boundary_condition]
-        self._extract_reactions_and_enzymes(model, cytosol_id, interface_id)
+        self._extract_reactions_and_enzymes(model, cytosol_id)
 
     def _load_document(self, input_file):
         document = libsbml.readSBML(input_file)
@@ -93,18 +93,16 @@ class SbmlData(object):
                 result.append(reaction.getProduct(0).getSpecies())
         return set(result)
 
-    def _extract_reactions_and_enzymes(self, model, cytosol_id, interface_id):
+    def _extract_reactions_and_enzymes(self, model, cytosol_id):
         self.reactions = rba.xml.ListOfReactions()
         self.enzymes = []
         parser = self._create_annotation_parser(model)
         for reaction in model.getListOfReactions():
             try:
                 enzymes = parser.enzyme_composition(reaction)
-            except UserWarning as warn:
-                raise UserWarning(
-                    'ERROR: In reaction \'{}\':\n'
-                    '{}'.format(reaction.id, warn.args[0])
-                )
+            except UserWarning:
+                self._print_invalid_enzyme_notes()
+                raise UserWarning('Invalid SBML.')
             # we create one reaction per associated enzyme
             for suffix, enzyme in enumerate(enzymes):
                 id_ = reaction.getId()
@@ -113,21 +111,20 @@ class SbmlData(object):
                 new_reaction = self._create_reaction(id_, reaction)
                 self.reactions.append(new_reaction)
                 self.enzymes.append(self._create_enzyme(
-                    new_reaction, enzyme, cytosol_id, interface_id
+                    new_reaction, enzyme, cytosol_id
                 ))
-        if not self.enzymes:
-            raise UserWarning(
-                'Your SBML document does not contain any fbc gene products nor uses '
-                'COBRA notes to define enzyme compositions for '
-                'reactions. Please comply with SBML'
-                ' requirements defined in the README and rerun the script.'
-            )
 
     def _create_annotation_parser(self, model):
         if model.getPlugin('fbc'):
             return FbcAnnotationParser(model.getPlugin('fbc'))
         else:
             return CobraNoteParser()
+
+    def _print_invalid_enzyme_notes(self):
+        print('Your SBML file does not contain fbc gene products nor uses '
+              ' COBRA notes to define enzyme composition for every '
+              'reaction. Please comply with SBML'
+              ' requirements defined in the README and rerun script.')
 
     def _create_reaction(self, id_, reaction):
         result = rba.xml.Reaction(id_, reaction.getReversible())
@@ -141,13 +138,13 @@ class SbmlData(object):
             )
         return result
 
-    def _create_enzyme(self, reaction, composition, cytosol_id, interface_id):
+    def _create_enzyme(self, reaction, composition, cytosol_id):
         enzyme = Enzyme(reaction.id,
                         not self._all_species_in_same_compartment(reaction))
         enzyme.gene_association = composition
-        enzyme.compartments_of_metabolites = self._retrieve_compartments_of_metabolites(reaction)
         enzyme.imported_metabolites = self._imported_metabolites(
-            enzyme, reaction, cytosol_id, interface_id)
+            reaction, cytosol_id
+        )
         enzyme.initialize_efficiencies()
         return enzyme
 
@@ -157,14 +154,7 @@ class SbmlData(object):
                                                  reaction.products)]
         return all(c == compartments[0] for c in compartments[1:])
 
-    def _retrieve_compartments_of_metabolites(self, reaction):
-        compartments = [self._suffix(m.species)
-                        for m in itertools.chain(reaction.reactants, reaction.products)]
-        # remove double entries + order entries by alphabetic order
-        compartments = set(compartments)
-        return compartments
-
-    def _imported_metabolites(self, enzyme, reaction, cytosol_id, interface_id):
+    def _imported_metabolites(self, reaction, cytosol_id):
         """
         Identify external metabolites imported into the cytosol.
 
@@ -175,17 +165,12 @@ class SbmlData(object):
         - they are not part of the cytosol.
         - one of the products is in the cytosol.
         """
-
-        if interface_id == []:
-            if self._has_cytosolic_product(reaction, cytosol_id):
-                return self._noncytosolic_external_reactants(reaction, cytosol_id)
-            else:
-                return []
+        if self._has_cytosolic_product(reaction, cytosol_id):
+            return self._noncytosolic_external_reactants(
+                reaction, cytosol_id
+            )
         else:
-            if enzyme.compartments_of_metabolites == interface_id:
-                return self._noncytosolic_external_reactants(reaction, cytosol_id)
-            else:
-                return []
+            return []
 
     def _prefix(self, metabolite_id):
         return metabolite_id.rsplit('_', 1)[0]
@@ -208,16 +193,10 @@ class SbmlData(object):
 
 class FbcAnnotationParser(object):
     """Parse fbc annotation to gather enzyme compositions."""
-
     def __init__(self, fbc_model):
         self._gene_names = {}
         for gene_product in fbc_model.getListOfGeneProducts():
             self._gene_names[gene_product.getId()] = gene_product.getLabel()
-        # remove 'G_' prefix if present
-        # (compatibility issue with COBRApy,
-        #  the label should be the gene name according to FBC specs)
-        self._gene_names = {id: re.sub("^G_", "", name)
-                            for id, name in self._gene_names.items()}
 
     def enzyme_composition(self, reaction):
         gp_association = reaction.getPlugin('fbc') \
@@ -247,13 +226,8 @@ class FbcAnnotationParser(object):
                 result += self._read_fbc_association_components(assoc)
             return result
         else:
-            raise UserWarning(
-                'Invalid or RBApy-incompatible SBML document.\n'
-                'RBApy forbids that gene reaction rules contain OR statements inside '
-                'AND statements. For example a rule "A and (B or C)" is not allowed '
-                'and would have to be converted into "(A and B) or (A and C)". Please '
-                'modify your input model and reformulate the Boolean rules in this way.'
-            )
+            print('Invalid association (we only support ors of ands)')
+            raise UserWarning('Invalid SBML.')
 
 
 class CobraNoteParser(object):

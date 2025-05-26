@@ -32,11 +32,12 @@ class PipelineParameters(object):
         """
         self.obligatory_tags = ['INPUT_DIR', 'OUTPUT_DIR', 'SBML_FILE',
                                 'ORGANISM_ID']
-        self.optional_tags = ['EXTERNAL_COMPARTMENTS','INTERFACE_COMPARTMENTS']
+        self.optional_tags = ['EXTERNAL_COMPARTMENTS']
         self.parameters = {}
 
         try:
-            with open(parameter_file, 'rU') as input_stream:
+            #here I changed with open(parameter_file, 'rU') to the current look
+            with open(parameter_file, 'r') as input_stream:
                 # parse file
                 for line in input_stream:
                     line = line.strip()

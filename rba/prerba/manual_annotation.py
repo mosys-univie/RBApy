@@ -4,7 +4,6 @@
 from __future__ import division, print_function, absolute_import
 
 import os.path
-import warnings
 from collections import namedtuple
 import pandas
 
@@ -22,7 +21,7 @@ class CuratedData(object):
 
     def update_file(self):
         if self._raw_data.update_file() and self._warning:
-            warnings.warn(self._warning, UserWarning)
+            print(self._warning)
 
 
 class CuratedSubunits(CuratedData):
@@ -48,8 +47,8 @@ class CuratedSubunits(CuratedData):
         self.data[uniprot_line.name] = value
         self._raw_data.add_row(
             (uniprot_line.name, value) +
-            tuple(uniprot_line[['Gene Names', 'Protein names',
-                                'Subunit structure']])
+            tuple(uniprot_line[['Gene names', 'Protein names',
+                                'Subunit structure [CC]']])
             )
 
 
@@ -64,7 +63,7 @@ class CuratedLocations(CuratedData):
             raise UserWarning(filename + ': please fill in the'
                               ' LOCATION column.')
         self._warning = (
-            'WARNING: ambiguous UniProt locations have been added to '
+            'WARNING: ambiguous uniprot locations have been added to '
             'file {}. Execution will continue with default values.'
             .format(filename)
             )
@@ -74,7 +73,7 @@ class CuratedLocations(CuratedData):
         self.data[uniprot_line.name] = value
         self._raw_data.add_row(
             (uniprot_line.name,) +
-            tuple(uniprot_line[['Gene Names', 'Protein names']]) +
+            tuple(uniprot_line[['Gene names', 'Protein names']]) +
             (value,)
             )
 
@@ -91,7 +90,7 @@ class CuratedCofactors(CuratedData):
         for row in self._raw_data.rows():
             self._add_to_data(row[0], Cofactor(*row[1:]))
         self._warning = (
-            'WARNING: ambiguous UniProt cofactor notes have been added to '
+            'WARNING: ambiguous uniprot cofactor notes have been added to '
             'file {}. Execution will continue with default values.'
             .format(filename, CurationData.missing_tag)
             )
@@ -126,8 +125,11 @@ class CuratedLocationMap(CuratedData):
         self.data = {r[0]: r[1] for r in self._raw_data.rows()}
         # add mandatory compartments (if they are missing)
         self.data.setdefault('Secreted', 'Secreted')
+        self.data.setdefault('Cytoplasm', 'Cytoplasm') #ADDED THIS TO FIX CYTOPLASM KEY ERROR
+        self.data.setdefault('Membrane', 'Membrane')       # Add this to fix float division problem
+        self.data.setdefault('Periplasm', 'Periplasm')     # Add this to fix float division problem
         self._warning = (
-            'WARNING: UniProt locations with no user-defined '
+            'WARNING: uniprot locations with no user-defined '
             'counterpart have been added to {}.'
             .format(filename)
             )
@@ -149,7 +151,7 @@ class CuratedUnknownProteins(CuratedData):
                               ' UNIPROT GENE column.')
         self.data = {r[0]: r[1] for r in self._raw_data.rows()}
         self._warning = (
-            'WARNING: SBML genes not referenced in UniProt have been added to '
+            'WARNING: SBML genes not referenced in uniprot have been added to '
             'file {}. Execution will continue with default values.'
             .format(filename)
             )
