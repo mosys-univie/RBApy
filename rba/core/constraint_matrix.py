@@ -62,7 +62,12 @@ class ConstraintMatrix(object):
                           + [m + '_target_flux' for m in undetermined_fluxes])
         self.reaction_cols = numpy.arange(nb_reactions)
         self.enzyme_cols = self.reaction_cols[-1] + 1 + numpy.arange(nb_enzymes)
-        self.process_cols = self.enzyme_cols[-1] + 1 + numpy.arange(nb_processes)
+        ####ADDED THE BELOW IF ELSE CONDITION TO TRY TO FIX
+        if self.enzyme_cols.size == 0:
+            self.process_cols = numpy.arange(nb_processes)
+        else:
+            self.process_cols = self.enzyme_cols[-1] + 1 + numpy.arange(nb_processes)
+        #self.process_cols = self.enzyme_cols[-1] + 1 + numpy.arange(nb_processes)   ORIGINAL CODE
         self.target_cols = (self.process_cols[-1] + 1 +
                             numpy.arange(nb_undetermined))
         # row information

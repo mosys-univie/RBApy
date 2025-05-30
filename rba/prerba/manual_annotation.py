@@ -125,9 +125,13 @@ class CuratedLocationMap(CuratedData):
         self.data = {r[0]: r[1] for r in self._raw_data.rows()}
         # add mandatory compartments (if they are missing)
         self.data.setdefault('Secreted', 'Secreted')
+<<<<<<< HEAD
         self.data.setdefault('Cytoplasm', 'Cytoplasm') #ADDED THIS TO FIX CYTOPLASM KEY ERROR
         self.data.setdefault('Membrane', 'Membrane')       # Add this to fix float division problem
         self.data.setdefault('Periplasm', 'Periplasm')     # Add this to fix float division problem
+=======
+        self.data.setdefault('Cytoplasm', 'Cytoplasm')
+>>>>>>> 94bdb94c0c86c88c9bbad59c7d7986c35390f1fe
         self._warning = (
             'WARNING: uniprot locations with no user-defined '
             'counterpart have been added to {}.'
