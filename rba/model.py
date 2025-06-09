@@ -116,7 +116,7 @@ class RbaModel(object):
                 concentrations values.
         """
         concentrations = {}
-        with open(file_name, 'rU') as input_stream:
+        with open(file_name, 'r') as input_stream:   #change to r instead of rU
             # skip header
             next(input_stream)
             for line in input_stream:
