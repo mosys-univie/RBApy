@@ -56,7 +56,12 @@ def main():
         print('done')
 
     print('Optimal growth rate is {}.'.format(results.mu_opt))
-    results.write(args.output_dir or args.model_dir)
+    #results.write(args.output_dir or args.model_dir)  ORIGINAL CODE
+    results.write_fluxes('visual/rba_escher_fluxes.json',
+        file_type='json',
+        merge_isozyme_reactions=True,
+        only_nonzero=True,
+        remove_prefix=True)
 
 
 if __name__ == '__main__':
